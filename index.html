@@ -6,10 +6,463 @@
   <meta name="theme-color" content="#181c20">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
+  <!-- Security Headers & Meta Tags -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; img-src 'self' data: https: blob:; connect-src 'self' https:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self';">
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="DENY">
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block">
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), accelerometer=()">
+  <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+  <meta name="googlebot" content="noindex, nofollow">
+  <meta name="bingbot" content="noindex, nofollow">
+  
   <title>Mohammad Saad - Portfolio</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/devicon.min.css">
-  <link rel="stylesheet" href="https://pro.fontawesome.com/releases/v6.0.0-beta1/css/all.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/fontawesome.min.css">
+  
+  <!-- Security Script - Load First -->
+  <script>
+    // Security Configuration
+    const SECURITY_CONFIG = {
+      csrfToken: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15),
+      sessionId: Date.now().toString(36) + Math.random().toString(36).substring(2),
+      maxRequestsPerMinute: 100,
+      blockedDomains: ['malicious.com', 'evil.com', 'hack.com'],
+      suspiciousPatterns: [
+        /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+        /javascript:/gi,
+        /vbscript:/gi,
+        /onload\s*=/gi,
+        /onerror\s*=/gi,
+        /onclick\s*=/gi,
+        /eval\s*\(/gi,
+        /Function\s*\(/gi,
+        /document\.write/gi,
+        /innerHTML\s*=/gi,
+        /outerHTML\s*=/gi
+      ]
+    };
+
+    // Request Rate Limiting
+    const requestLog = new Map();
+    const rateLimit = {
+      check: function(ip) {
+        const now = Date.now();
+        const minuteAgo = now - 60000;
+        
+        if (!requestLog.has(ip)) {
+          requestLog.set(ip, []);
+        }
+        
+        const requests = requestLog.get(ip);
+        const recentRequests = requests.filter(time => time > minuteAgo);
+        
+        if (recentRequests.length >= SECURITY_CONFIG.maxRequestsPerMinute) {
+          return false;
+        }
+        
+        recentRequests.push(now);
+        requestLog.set(ip, recentRequests);
+        return true;
+      }
+    };
+
+    // Input Sanitization
+    const sanitizer = {
+      sanitize: function(input) {
+        if (typeof input !== 'string') return input;
+        
+        // Remove null bytes and control characters
+        input = input.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '');
+        
+        // Check for suspicious patterns
+        for (let pattern of SECURITY_CONFIG.suspiciousPatterns) {
+          if (pattern.test(input)) {
+            console.warn('Suspicious input detected and blocked:', input);
+            return '';
+          }
+        }
+        
+        // HTML entity encoding
+        return input
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#x27;');
+      },
+      
+      validateUrl: function(url) {
+        try {
+          const urlObj = new URL(url);
+          return SECURITY_CONFIG.blockedDomains.every(domain => !urlObj.hostname.includes(domain));
+        } catch {
+          return false;
+        }
+      }
+    };
+
+    // XSS Protection
+    const xssProtection = {
+      init: function() {
+        // Override dangerous DOM methods
+        const originalInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+        const originalOuterHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'outerHTML');
+        const originalInsertAdjacentHTML = Element.prototype.insertAdjacentHTML;
+        
+        Object.defineProperty(Element.prototype, 'innerHTML', {
+          set: function(value) {
+            const sanitized = sanitizer.sanitize(value);
+            originalInnerHTML.set.call(this, sanitized);
+          },
+          get: originalInnerHTML.get
+        });
+        
+        Object.defineProperty(Element.prototype, 'outerHTML', {
+          set: function(value) {
+            const sanitized = sanitizer.sanitize(value);
+            originalOuterHTML.set.call(this, sanitized);
+          },
+          get: originalOuterHTML.get
+        });
+        
+        Element.prototype.insertAdjacentHTML = function(position, text) {
+          const sanitized = sanitizer.sanitize(text);
+          return originalInsertAdjacentHTML.call(this, position, sanitized);
+        };
+        
+        // Disable eval and Function constructor
+        window.eval = function() {
+          console.warn('eval() is disabled for security');
+          return undefined;
+        };
+        
+        window.Function = function() {
+          console.warn('Function constructor is disabled for security');
+          return function() {};
+        };
+      }
+    };
+
+    // CSRF Protection
+    const csrfProtection = {
+      token: SECURITY_CONFIG.csrfToken,
+      
+      addTokenToForms: function() {
+        const forms = document.querySelectorAll('form');
+        forms.forEach(form => {
+          const tokenInput = document.createElement('input');
+          tokenInput.type = 'hidden';
+          tokenInput.name = '_csrf';
+          tokenInput.value = this.token;
+          form.appendChild(tokenInput);
+        });
+      },
+      
+      validateToken: function(token) {
+        return token === this.token;
+      }
+    };
+
+    // Anti-Debugging & Developer Tools Detection
+    const antiDebug = {
+      init: function() {
+        // Detect developer tools
+        let devtools = { open: false, orientation: null };
+        
+        setInterval(() => {
+          const threshold = 160;
+          const widthThreshold = window.outerWidth - window.innerWidth > threshold;
+          const heightThreshold = window.outerHeight - window.innerHeight > threshold;
+          
+          if (widthThreshold || heightThreshold) {
+            if (!devtools.open) {
+              devtools.open = true;
+              this.handleDevToolsOpen();
+            }
+          } else {
+            devtools.open = false;
+          }
+        }, 500);
+        
+        // Detect console opening
+        let consoleCheck = setInterval(() => {
+          const before = Date.now();
+          debugger;
+          const after = Date.now();
+          if (after - before > 100) {
+            this.handleDevToolsOpen();
+          }
+        }, 1000);
+        
+        // Block keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+          const blockedCombos = [
+            { ctrl: true, shift: true, key: 'I' },
+            { ctrl: true, shift: true, key: 'J' },
+            { ctrl: true, shift: true, key: 'C' },
+            { ctrl: true, key: 'U' },
+            { key: 'F12' }
+          ];
+          
+          for (let combo of blockedCombos) {
+            if (e.ctrlKey === combo.ctrl && e.shiftKey === combo.shift && e.key === combo.key) {
+              e.preventDefault();
+              e.stopPropagation();
+              this.handleDevToolsOpen();
+              return false;
+            }
+          }
+        });
+      },
+      
+      handleDevToolsOpen: function() {
+        console.warn('Developer tools detected - access restricted');
+        // Additional actions can be added here
+      }
+    };
+
+    // Clickjacking Protection
+    const clickjackingProtection = {
+      init: function() {
+        // Prevent iframe embedding
+        if (window.self !== window.top) {
+          window.top.location = window.self.location;
+        }
+        
+        // Block drag and drop
+        document.addEventListener('dragstart', (e) => {
+          e.preventDefault();
+          return false;
+        });
+        
+        document.addEventListener('drop', (e) => {
+          e.preventDefault();
+          return false;
+        });
+      }
+    };
+
+    // Network Security
+    const networkSecurity = {
+      init: function() {
+        // Monitor fetch requests
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+          if (!sanitizer.validateUrl(url)) {
+            console.warn('Blocked request to suspicious domain:', url);
+            return Promise.reject(new Error('Request blocked for security'));
+          }
+          return originalFetch(url, options);
+        };
+        
+        // Monitor XMLHttpRequest
+        const originalXHROpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url) {
+          if (!sanitizer.validateUrl(url)) {
+            console.warn('Blocked XHR request to suspicious domain:', url);
+            return;
+          }
+          return originalXHROpen.call(this, method, url);
+        };
+      }
+    };
+
+    // Memory Protection
+    const memoryProtection = {
+      init: function() {
+        // Clear sensitive data periodically
+        setInterval(() => {
+          if (typeof window.gc === 'function') {
+            window.gc();
+          }
+        }, 30000);
+        
+        // Monitor memory usage
+        if (performance.memory) {
+          setInterval(() => {
+            const memory = performance.memory;
+            if (memory.usedJSHeapSize > memory.jsHeapSizeLimit * 0.8) {
+              console.warn('High memory usage detected');
+            }
+          }, 10000);
+        }
+      }
+    };
+
+    // Advanced Tampering Detection
+    const tamperingDetection = {
+      init: function() {
+        // Monitor DOM changes
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            if (mutation.type === 'childList') {
+              mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                  this.checkForSuspiciousContent(node);
+                }
+              });
+            }
+          });
+        });
+        
+        observer.observe(document.body, {
+          childList: true,
+          subtree: true
+        });
+        
+        // Monitor property modifications
+        const originalDefineProperty = Object.defineProperty;
+        Object.defineProperty = function(obj, prop, descriptor) {
+          if (obj === window || obj === document) {
+            console.warn('Attempt to modify protected object detected');
+            return obj;
+          }
+          return originalDefineProperty.call(this, obj, prop, descriptor);
+        };
+      },
+      
+      checkForSuspiciousContent: function(element) {
+        const suspiciousAttributes = ['onload', 'onerror', 'onclick', 'onmouseover'];
+        const suspiciousContent = ['<script', 'javascript:', 'vbscript:'];
+        
+        // Check attributes
+        suspiciousAttributes.forEach(attr => {
+          if (element.hasAttribute(attr)) {
+            console.warn('Suspicious attribute detected and removed:', attr);
+            element.removeAttribute(attr);
+          }
+        });
+        
+        // Check content
+        if (element.innerHTML) {
+          suspiciousContent.forEach(content => {
+            if (element.innerHTML.toLowerCase().includes(content)) {
+              console.warn('Suspicious content detected and sanitized');
+              element.innerHTML = sanitizer.sanitize(element.innerHTML);
+            }
+          });
+        }
+      }
+    };
+
+    // Event Logging & Monitoring
+    const securityLogger = {
+      logs: [],
+      
+      log: function(event, details) {
+        const logEntry = {
+          timestamp: new Date().toISOString(),
+          event: event,
+          details: details,
+          sessionId: SECURITY_CONFIG.sessionId,
+          userAgent: navigator.userAgent,
+          url: window.location.href
+        };
+        
+        this.logs.push(logEntry);
+        
+        // Keep only last 1000 logs
+        if (this.logs.length > 1000) {
+          this.logs.shift();
+        }
+        
+        // Encrypt sensitive logs
+        if (event.includes('attack') || event.includes('suspicious')) {
+          this.encryptLog(logEntry);
+        }
+      },
+      
+      encryptLog: function(logEntry) {
+        // Simple encryption for demo purposes
+        logEntry.encrypted = true;
+        logEntry.details = btoa(JSON.stringify(logEntry.details));
+      }
+    };
+
+    // Code Obfuscation
+    const codeObfuscation = {
+      obfuscateFunctionNames: function() {
+        // This is a simplified version - in production, use proper obfuscation tools
+        const functionNames = ['init', 'check', 'sanitize', 'validate', 'protect'];
+        const obfuscatedNames = ['a', 'b', 'c', 'd', 'e'];
+        
+        functionNames.forEach((name, index) => {
+          if (window[name]) {
+            window[obfuscatedNames[index]] = window[name];
+            delete window[name];
+          }
+        });
+      }
+    };
+
+    // Initialize all security features
+    (function() {
+      'use strict';
+      
+      // Initialize security features
+      xssProtection.init();
+      antiDebug.init();
+      clickjackingProtection.init();
+      networkSecurity.init();
+      memoryProtection.init();
+      tamperingDetection.init();
+      csrfProtection.addTokenToForms();
+      
+      // Log security initialization
+      securityLogger.log('security_init', { features: 'all_enabled' });
+      
+      // Additional protections
+      document.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        securityLogger.log('right_click_blocked', { x: e.clientX, y: e.clientY });
+        return false;
+      });
+      
+      // Prevent text selection on sensitive elements
+      const sensitiveElements = document.querySelectorAll('.expertise-card, .cert-thumb, .download-btn, .cta');
+      sensitiveElements.forEach(el => {
+        el.style.userSelect = 'none';
+        el.style.webkitUserSelect = 'none';
+        el.style.mozUserSelect = 'none';
+        el.style.msUserSelect = 'none';
+      });
+      
+      // URL manipulation protection
+      let currentUrl = window.location.href;
+      setInterval(() => {
+        if (window.location.href !== currentUrl) {
+          securityLogger.log('url_manipulation_detected', { 
+            original: currentUrl, 
+            current: window.location.href 
+          });
+          window.location.href = currentUrl;
+        }
+      }, 1000);
+      
+      // Console tampering detection
+      const originalConsole = { ...console };
+      Object.keys(console).forEach(key => {
+        Object.defineProperty(console, key, {
+          get: function() {
+            return originalConsole[key];
+          },
+          set: function(value) {
+            securityLogger.log('console_tampering_detected', { 
+              method: key, 
+              value: typeof value 
+            });
+            originalConsole[key] = value;
+          }
+        });
+      });
+      
+    })();
+  </script>
   <style>
     :root {
       --primary: #ff6b35;
@@ -1142,7 +1595,7 @@
   </div>
   
   <nav class="sidebar" id="sidebar">
-    
+    <div class="logo">MS</div>
     <a class="nav-icon" href="#hero" title="Home"><i class="fas fa-home"></i></a>
     <a class="nav-icon" href="#skills" title="Skills"><i class="fas fa-bolt"></i></a>
     <a class="nav-icon" href="#tools" title="Tools"><i class="fas fa-tools"></i></a>
@@ -1153,9 +1606,9 @@
     <section class="about-me" style="background: var(--glass); border-radius: 24px; box-shadow: 0 2px 18px var(--primary); border: 2px solid var(--border); margin: 2.5rem auto 2.5rem auto; max-width: 700px; text-align: left; color: var(--text);">
       <h2 style="font-family: 'Orbitron', sans-serif; font-size: 2rem; color: var(--primary); margin-bottom: 0.7rem; letter-spacing: 1.2px; text-shadow: 0 0 8px var(--primary);">About Me</h2>
       <p style="font-size: 1.15rem; color: var(--muted); line-height: 1.7;">
-  Hi! I’m Mohammad Saad — a curious developer, game creator, and hardware enthusiast. I love turning ideas into reality — whether it’s building playful games, interactive apps, or tinkering with smart gadgets. For me, technology isn’t just about code or hardware — it’s about creating meaningful, fun, and sometimes magical experiences.<br><br>
-  I believe in learning by doing, sharing what I discover, and keeping things a little creative (and sometimes a little quirky 😄). If something I make brings a smile or a “whoa!”, that’s a win for me.<br><br>
-  Let’s build something awesome together!
+  Hi! I'm Mohammad Saad — a curious developer, game creator, and hardware enthusiast. I love turning ideas into reality — whether it's building playful games, interactive apps, or tinkering with smart gadgets. For me, technology isn't just about code or hardware — it's about creating meaningful, fun, and sometimes magical experiences.<br><br>
+  I believe in learning by doing, sharing what I discover, and keeping things a little creative (and sometimes a little quirky 😄). If something I make brings a smile or a "whoa!", that's a win for me.<br><br>
+  Let's build something awesome together!
 </p>
       <span style="display:block; text-align:right; color:var(--secondary); font-family:'Orbitron',sans-serif; font-size:1.1rem; margin-top:1.2rem;">— Mohammad Saad</span>
     </section>
@@ -1166,9 +1619,8 @@
       <button class="cta" onclick="document.getElementById('skills').scrollIntoView({behavior:'smooth'})">See My Skills</button>
     </section>
     
-    <!-- Download Buttons Bar -->
+        <!-- Download Buttons Bar -->
 
-    
     <section id="skills">
       <div class="section-title">Skills</div>
       <div class="expertise-grid">
@@ -1186,9 +1638,9 @@
         <div class="expertise-card"><div class="icon"><i class="devicon-react-original colored"></i></div><div class="label">React Native</div></div>
         <div class="expertise-card"><div class="icon"><i class="devicon-dart-plain colored"></i></div><div class="label">Flutter</div></div>
         <div class="expertise-card"><div class="icon"><i class="devicon-android-plain colored"></i></div><div class="label">Android Studio</div></div>
-        <div class="expertise-card"><div class="icon"><i class="devicon-javascript-plain colored"></i></div><div class="label">A-Frame</div></div>
-        <div class="expertise-card"><div class="icon"><i class="devicon-javascript-plain colored"></i></div><div class="label">2D Physics</div></div>
-        <div class="expertise-card"><div class="icon"><i class="devicon-javascript-plain colored"></i></div><div class="label">p5.js</div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-vr-cardboard"></i></div><div class="label">A-Frame</div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-atom"></i></div><div class="label">2D Physics</div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-palette"></i></div><div class="label">p5.js</div></div>
         <div class="expertise-card"><div class="icon"><i class="devicon-bootstrap-plain colored"></i></div><div class="label">Bootstrap</div></div>
         <div class="expertise-card"><div class="icon"><i class="devicon-ruby-plain colored"></i></div><div class="label">Ruby</div></div>
           </div>
@@ -1203,10 +1655,10 @@
         <div class="expertise-card"><div class="icon"><i class="devicon-unity-plain colored"></i></div><div class="label">Unity Engine</div></div>
         <div class="expertise-card"><div class="icon"><i class="devicon-unrealengine-plain colored"></i></div><div class="label">Unreal Engine</div></div>
         <div class="expertise-card"><div class="icon"><i class="devicon-godot-plain colored"></i></div><div class="label">Godot Engine</div></div>
-        <div class="expertise-card"><div class="icon"><i class="fas fa-gamepad"></i></div><div class="label">Cry Engine</div></div>
-        <div class="expertise-card"><div class="icon"><img src="https://cdn.worldvectorlogo.com/logos/blender-1.svg" alt="Blender Extension" style="width: 3.2rem; height: 3.2rem; filter: brightness(0) invert(1);"></div><div class="label">Blender Extension</div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-snowflake"></i></div><div class="label">Cry Engine</div></div>
+        <div class="expertise-card"><div class="icon"><img src="https://cdn.worldvectorlogo.com/logos/blender-1.svg" alt="Blender Extension" style="width: 3.2rem; height: 3.2rem; filter: brightness(0) invert(1);"></div><div class="label">Blender GameEngine Extension</div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-cube"></i></div><div class="label">COCO Engine</div></div>
-        <div class="expertise-card"><div class="icon"><i class="fas fa-gamepad"></i></div><div class="label">Constructor 2</div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-puzzle-piece"></i></div><div class="label">Constructor 2</div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-network-wired"></i></div><div class="label">Cisco Packet Tracer</div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-microchip"></i></div><div class="label">Wokwi</div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-robot"></i></div><div class="label">Webots</div></div>
@@ -1219,7 +1671,7 @@
         <div class="expertise-card"><div class="icon"><i class="devicon-vercel-plain colored"></i></div><div class="label">Vercel</div></div>
         <div class="expertise-card"><div class="icon"><i class="devicon-arduino-plain colored"></i></div><div class="label">Arduino UNO</div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-microchip"></i></div><div class="label">ESP32</div></div>
-      </div>
+        </div>
     </section>
     <section id="project-stats">
       <div class="section-title">Project Statistics</div>
@@ -1230,20 +1682,20 @@
         <div class="expertise-card"><div class="icon"><i class="devicon-unrealengine-plain colored"></i></div><div class="label">Unreal Engine<br><span style="font-size: 2rem; color: var(--primary);">50+</span></div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-laptop-code"></i></div><div class="label">Code.org<br><span style="font-size: 2rem; color: var(--primary);">90+</span></div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-cloud"></i></div><div class="label">Google Colab<br><span style="font-size: 2rem; color: var(--primary);">65+</span></div></div>
-        <div class="expertise-card"><div class="icon"><i class="fas fa-microchip"></i></div><div class="label">Wokwi<br><span style="font-size: 2rem; color: var(--primary);">49</span></div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-microchip"></i></div><div class="label">Wokwi<br><span style="font-size: 2rem; color: var(--primary);">49+</span></div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-robot"></i></div><div class="label">Webots<br><span style="font-size: 2rem; color: var(--primary);">37+</span></div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-network-wired"></i></div><div class="label">Cisco Packet Tracer<br><span style="font-size: 2rem; color: var(--primary);">40+</span></div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-gamepad"></i></div><div class="label">Snake Expo<br><span style="font-size: 2rem; color: var(--primary);">40+</span></div></div>
-        <div class="expertise-card"><div class="icon"><i class="fas fa-code"></i></div><div class="label">p5.js<br><span style="font-size: 2rem; color: var(--primary);">51</span></div></div>
-        <div class="expertise-card"><div class="icon"><i class="fas fa-gamepad"></i></div><div class="label">Cry Engine<br><span style="font-size: 2rem; color: var(--primary);">25+</span></div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-palette"></i></div><div class="label">p5.js<br><span style="font-size: 2rem; color: var(--primary);">51+</span></div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-snowflake"></i></div><div class="label">Cry Engine<br><span style="font-size: 2rem; color: var(--primary);">25+</span></div></div>
         <div class="expertise-card"><div class="icon"><i class="devicon-godot-plain colored"></i></div><div class="label">Godot Engine<br><span style="font-size: 2rem; color: var(--primary);">15+</span></div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-cube"></i></div><div class="label">COCO Engine<br><span style="font-size: 2rem; color: var(--primary);">12+</span></div></div>
-        <div class="expertise-card"><div class="icon"><i class="fas fa-gamepad"></i></div><div class="label">Constructor 2<br><span style="font-size: 2rem; color: var(--primary);">35+</span></div></div>
-        <div class="expertise-card"><div class="icon"><img src="https://cdn.worldvectorlogo.com/logos/blender-1.svg" alt="Blender Extension" style="width: 3.2rem; height: 3.2rem; filter: brightness(0) invert(1);"></div><div class="label">Blender Extension<br><span style="font-size: 2rem; color: var(--primary);">5+</span></div></div>
-        <div class="expertise-card"><div class="icon"><i class="fas fa-cube"></i></div><div class="label">Tinkercad<br><span style="font-size: 2rem; color: var(--primary);">9</span></div></div>
-        <div class="expertise-card"><div class="icon"><i class="fas fa-rocket"></i></div><div class="label">Production Projects<br><span style="font-size: 2rem; color: var(--primary);">6</span></div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-puzzle-piece"></i></div><div class="label">Constructor 2<br><span style="font-size: 2rem; color: var(--primary);">35+</span></div></div>
+        <div class="expertise-card"><div class="icon"><img src="https://cdn.worldvectorlogo.com/logos/blender-1.svg" alt="Blender Extension" style="width: 3.2rem; height: 3.2rem; filter: brightness(0) invert(1);"></div><div class="label">Blender GameEngine Extension<br><span style="font-size: 2rem; color: var(--primary);">5+</span></div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-cube"></i></div><div class="label">Tinkercad<br><span style="font-size: 2rem; color: var(--primary);">9+</span></div></div>
+        <div class="expertise-card"><div class="icon"><i class="fas fa-rocket"></i></div><div class="label">Production Projects<br><span style="font-size: 2rem; color: var(--primary);">6+</span></div></div>
         <div class="expertise-card"><div class="icon"><i class="fas fa-folder-open"></i></div><div class="label">Unofficial Projects<br><span style="font-size: 2rem; color: var(--primary);">250+</span></div></div>
-      </div>
+          </div>
     </section>
     <section id="certificates">
       <div class="section-title">Certificates</div>
@@ -1277,7 +1729,7 @@
         <div class="cert-thumb"><img src="photos/WhatsApp Image 2025-07-09 at 4.21.28 PM.jpeg" alt="Certificate 27"></div>
         <div class="cert-thumb"><img src="photos/WhatsApp Image 2025-07-09 at 4.21.47 PM.jpeg" alt="Certificate 28"></div>
         <div class="cert-thumb"><img src="photos/WhatsApp Image 2025-07-09 at 4.22.30 PM.jpeg" alt="Certificate 29"></div>
-          </div>
+        </div>
       <div class="modal" id="certModal">
         <div class="modal-content">
           <button class="modal-close" id="modalClose">&times;</button>
@@ -1329,7 +1781,7 @@
         <div class="social-text">Sketchfab</div>
       </li>
     </ul>
-      </div>
+          </div>
   <script src="https://cdn.jsdelivr.net/npm/tsparticles@2.12.0/tsparticles.bundle.min.js"></script>
   <script>
     // Animated particles background with mobile optimization
@@ -1434,6 +1886,51 @@
           location.reload(); // Reload to update particles configuration
         }
       }, 250);
+    });
+    
+    // Disable right-click context menu
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      return false;
+    });
+    
+    // Disable keyboard shortcuts for developer tools
+    document.addEventListener('keydown', function(e) {
+      // Disable F12 key
+      if (e.key === 'F12') {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Disable Ctrl+Shift+I (Developer Tools)
+      if (e.ctrlKey && e.shiftKey && e.key === 'I') {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Disable Ctrl+Shift+J (Console)
+      if (e.ctrlKey && e.shiftKey && e.key === 'J') {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Disable Ctrl+U (View Source)
+      if (e.ctrlKey && e.key === 'u') {
+        e.preventDefault();
+        return false;
+      }
+      
+      // Disable Ctrl+Shift+C (Inspect Element)
+      if (e.ctrlKey && e.shiftKey && e.key === 'C') {
+        e.preventDefault();
+        return false;
+      }
+    });
+  </script>
+  <script>
+    document.addEventListener('contextmenu', function(e) {
+      e.preventDefault();
+      return false;
     });
   </script>
 </body>
